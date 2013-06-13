@@ -1,6 +1,5 @@
 require_relative 'token_file'
 require 'getoptlong'
-require 'rack/utils'
 require 'uri'
 require 'net/http'
 require 'net/https'
@@ -8,21 +7,12 @@ require 'json'
 require 'time'
 require 'base64'
 
-def escapeURI s
-  Rack::Utils::escape s.to_s
-end
-
-def uri_encode_form params
-  params.map { |k, v|
-    "#{k}=#{escapeURI v}"
-  }.join '&'
-end
 
 GC_API_ROOT = 'https://staging.api.groundspeak.com/Live/V6Beta/geocaching.svc'
 
 def call_gc svcname, access_token, parms = {}
   uri = URI "#{GC_API_ROOT}/#{svcname}"
-  uri.query = uri_encode_form parms.merge(
+  uri.query = URI.encode_www_form parms.merge(
     :format => 'json', 
     :accessToken => access_token
   )
