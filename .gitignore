@@ -1,3 +1,4 @@
 .*.sw?
+*.zip
 config.yml
 gc.tok

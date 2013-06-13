@@ -6,9 +6,10 @@ require 'net/http'
 require 'net/https'
 require 'json'
 require 'time'
+require 'base64'
 
 def escapeURI s
-  Rack::Utils::escape(s.to_s)
+  Rack::Utils::escape s.to_s
 end
 
 def uri_encode_form params
@@ -17,7 +18,7 @@ def uri_encode_form params
   }.join '&'
 end
 
-GC_API_ROOT='https://staging.api.groundspeak.com/Live/V6Beta/geocaching.svc'
+GC_API_ROOT = 'https://staging.api.groundspeak.com/Live/V6Beta/geocaching.svc'
 
 def call_gc svcname, access_token, parms = {}
   uri = URI "#{GC_API_ROOT}/#{svcname}"
@@ -66,7 +67,6 @@ EOM
 force_login = false
 
 begin
-
   opts = GetoptLong.new( 
                         [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
                         [ '--login', '-l', GetoptLong::NO_ARGUMENT ], 
@@ -84,7 +84,6 @@ begin
 
     end
   }
-
 rescue => err
   $stderr.puts USAGE
   exit 1
@@ -98,11 +97,25 @@ jsn = call_gc 'GetPocketQueryList', access_token
 pqlist = jsn['PocketQueryList'] || []
 pqlist.each { |pq|
   lastgen = Time.at(pq['DateLastGenerated'][6..-1].to_f / 1000)
+
+  pqname = pq['Name']
+
   puts <<-EOM
-=============================
-#{pq['Name']}: #{pq['PQCount']} caches, #{pq['FileSizeInBytes']} bytes
+========================================
+#{pqname}: #{pq['PQCount']} caches, #{pq['FileSizeInBytes']} bytes
 #{pq['GUID']}
 available: #{pq['IsDownloadAvailable']}
 generated: #{lastgen.strftime '%Y-%m-%d %H:%M:%S'}
+========================================
   EOM
+
+  puts "Downloading #{pqname}..."
+
+  jsn2 = call_gc 'GetPocketQueryZippedFile', access_token, :pocketQueryGuid => pq['GUID']
+  if jsn2['ZippedFile']
+    zipdata = Base64.decode64 jsn2['ZippedFile']
+    File.open("#{pqname}.zip", 'wb') { |file|
+      file.write zipdata
+    }
+  end
 }
